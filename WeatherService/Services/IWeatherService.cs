@@ -1,7 +1,9 @@
-﻿namespace WeatherServiceApp.Services
+﻿using WeatherServiceApp.Domain;
+
+namespace WeatherServiceApp.Services
 {
     internal interface IWeatherService
     {
-        Task<string> GetWeatherAsync(double lat, double lon);
+        Task<WeatherForecastDto> GetWeatherForecastAsync(double lat, double lon);
     }
 }

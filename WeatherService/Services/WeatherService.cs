@@ -1,9 +1,10 @@
 ﻿
-using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System.Collections.Specialized;
-using System.IO;
 using System.Net.Http.Headers;
 using System.Web;
+using WeatherServiceApp.Domain;
 using WeatherServiceApp.Extensions;
 
 namespace WeatherServiceApp.Services
@@ -13,50 +14,70 @@ namespace WeatherServiceApp.Services
 
     internal class WeatherService : IWeatherService
     {
+        private const string API_KEY = "dd5699bb094c9282d00bb0073abb4e82";
+        private const string BASE_API_ADDRESS = "https://api.openweathermap.org";
+        private const string FORECAST_API_PATH = "data/2.5/forecast";
         private readonly HttpClient _client;
-        private readonly string _apiKey;
-        private readonly string _baseUrl;
 
-        public WeatherService(string apiKey, string baseAddress)
+        public WeatherService()
         {
             _client = new HttpClient();
-            //var uriBuilder = new UriBuilder(baseAddress);
-            //var baseQuery = HttpUtility.ParseQueryString(uriBuilder.Query);
-            //_client.BaseAddress = new Uri(baseAddress);
             _client.DefaultRequestHeaders.Accept.Clear();
             _client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
-
-            _apiKey = apiKey;
-            _baseUrl = baseAddress;
         }
 
-        //private string AddApiIdParameter(Uri uri)
-        //{
-
-        //}
-
-        public async Task<string> GetWeatherAsync(double lat, double lon)
+        private Uri CreateRequestUri(string relatedUrl, Dictionary<string, string> queryParams)
         {
             NameValueCollection queryString = HttpUtility.ParseQueryString(string.Empty);
-            queryString["appid"] = _apiKey;
-            queryString["lat"]= lat.ToString();
-            queryString["lon"]= lon.ToString();
+            queryString["appid"] = API_KEY;
 
-            var uriBuilder = new UriBuilder(_baseUrl);
-            uriBuilder.Query = queryString.ToString();
-            uriBuilder.Append("data/2.5/forecast");
-            var url = uriBuilder.Uri;
-
-            HttpResponseMessage response = await _client.GetAsync(url);
-            string responseString="";
-            if (response.IsSuccessStatusCode)
+            foreach (var queryParam in queryParams)
             {
-                responseString = await response.Content.ReadAsStringAsync();
+                queryString[queryParam.Key] = queryParam.Value;
             }
 
-            return responseString;
+            var uriBuilder = new UriBuilder(BASE_API_ADDRESS);
+            uriBuilder.Query = queryString.ToString();
+            uriBuilder.AppendToPath(relatedUrl);
+            var uriReult = uriBuilder.Uri;
+            return uriReult;
         }
 
+        private async Task<TResult> GetAsync<TResult>(string url)
+        {
+            HttpResponseMessage response = await _client.GetAsync(url);
+            string responseJSON = "";
+            if (response.IsSuccessStatusCode)
+            {
+                responseJSON = await response.Content.ReadAsStringAsync();
+            }
+
+            var settings = new JsonSerializerSettings
+            {
+                ContractResolver = new DefaultContractResolver
+                {
+                    NamingStrategy = new SnakeCaseNamingStrategy { ProcessDictionaryKeys = true }
+                },
+                Formatting = Formatting.Indented
+            };
+
+            var result = JsonConvert.DeserializeObject<TResult>(responseJSON, settings);
+            return result;
+        }
+
+        public async Task<WeatherForecastDto> GetWeatherForecastAsync(double lat, double lon)
+        {
+            var paramsDict = new Dictionary<string, string>();
+            paramsDict["lat"] = lat.ToString();
+            paramsDict["lon"] = lon.ToString();
+
+            var url = CreateRequestUri(FORECAST_API_PATH, paramsDict);
+            var result = await GetAsync<WeatherForecastDto>(url.ToString());
+            return result;
+        }
+
+
     }
+
 }
