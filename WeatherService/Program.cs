@@ -1,4 +1,5 @@
-﻿using WeatherServiceApp.Services;
+﻿using System.Text.Json;
+using WeatherServiceApp.Services;
 
 IWeatherService service = new WeatherService();
 
@@ -7,5 +8,6 @@ var lon = 22.495928247154122;
 
 var weatherForecastDto = await service.GetWeatherForecastAsync(lat, lon);
 
-Console.WriteLine(weatherForecastDto);
+var json =JsonSerializer.Serialize(weatherForecastDto);
+Console.WriteLine(json);
 Console.ReadLine();

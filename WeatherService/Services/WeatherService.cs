@@ -9,9 +9,6 @@ using WeatherServiceApp.Extensions;
 
 namespace WeatherServiceApp.Services
 {
-
-
-
     internal class WeatherService : IWeatherService
     {
         private const string API_KEY = "dd5699bb094c9282d00bb0073abb4e82";
@@ -66,18 +63,66 @@ namespace WeatherServiceApp.Services
             return result;
         }
 
-        public async Task<WeatherForecastDto> GetWeatherForecastAsync(double lat, double lon)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="lat"></param>
+        /// <param name="lon"></param>
+        /// <param name="langCode"><example>EN | PL | TR etc.</example></param>
+        /// <param name="measureUnits">Units of measurement. <c>standard</c>, <c>metric</c> and <c>imperial</c> units are available</param>
+        /// <returns></returns>
+        public async Task<WeatherForecastDto> GetWeatherForecastRawAsync(double lat, double lon, string langCode = "EN", string measureUnits = "metric")
         {
             var paramsDict = new Dictionary<string, string>();
             paramsDict["lat"] = lat.ToString();
             paramsDict["lon"] = lon.ToString();
+            paramsDict["lang"] = langCode;
+            paramsDict["units"] = measureUnits;
 
             var url = CreateRequestUri(FORECAST_API_PATH, paramsDict);
             var result = await GetAsync<WeatherForecastDto>(url.ToString());
             return result;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="lat"></param>
+        /// <param name="lon"></param>
+        /// <param name="langCode"><example>EN | PL | TR etc.</example></param>
+        /// <param name="measureUnits">Units of measurement. <c>standard</c>, <c>metric</c> and <c>imperial</c> units are available</param>
+        /// <returns></returns>
+        public async Task<WeatherForecast> GetWeatherForecastAsync(double lat, double lon, string langCode = "EN", string measureUnits = "metric")
+        {
+            var data = await GetWeatherForecastRawAsync(lat, lon, langCode, measureUnits);
+            var weatherForecast = new WeatherForecast();
+            weatherForecast.Latitude = data.City.Coord.Lat;
+            weatherForecast.Latitude = data.City.Coord.Lon;
+            weatherForecast.Country = data.City.Country;
+            weatherForecast.PlaceName = data.City.Name;
+            weatherForecast.TimezoneSec = data.City.Timezone;
 
+            var weatherForecastTimestamps = data.List.Select(item =>
+            {
+                var forecasTimeStamp = new WeatherForecastTimestamp();
+                forecasTimeStamp.DateTime = new DateTime(DateTime.UnixEpoch.Ticks, DateTimeKind.Unspecified).AddSeconds(item.Dt);
+
+                forecasTimeStamp.Temperature = item.Main.Temp;
+                forecasTimeStamp.TemperatureFeelsLike = item.Main.FeelsLike;
+                forecasTimeStamp.TemperatureMin = item.Main.TempMin;
+                forecasTimeStamp.TemperatureMax = item.Main.TempMax;
+
+                forecasTimeStamp.WeatherId = item.Weather[0].Id;
+                forecasTimeStamp.WeatherName = item.Weather[0].Main;
+                forecasTimeStamp.WeatherDescription = item.Weather[0].Description;
+                forecasTimeStamp.WeatherIcon = item.Weather[0].Icon;
+                return forecasTimeStamp;
+            })
+            .ToList();
+            weatherForecast.WeatherForecastTimestamps = weatherForecastTimestamps;
+
+            return weatherForecast;
+        }
     }
 
 }
